@@ -1,0 +1,637 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LED Control</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <style>
+        /* Base styles */
+        body {
+            background: linear-gradient(135deg, #FAD0C9FF 0%, #F8B3A5 100%);
+            min-height: 100vh;
+        }
+
+        .container-box {
+            background: rgba(16, 24, 32, 0.95);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            max-width: 800px;
+            width: 95%;
+            margin: 1rem auto;
+            padding: 1.5rem;
+        }
+
+        /* LED Button styling */
+        .led-button {
+            background: #F56565;
+            color: white;
+            width: 100%;
+            padding: 1.5rem;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 1.5rem;
+            border: none;
+            cursor: pointer;
+            margin-top: 2rem;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .led-button:hover {
+            background: #E53E3E;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        }
+
+        .led-button:active {
+            transform: translateY(0);
+        }
+
+        .led-button.on {
+            background: #48BB78;
+        }
+
+        .led-button.on:hover {
+            background: #38A169;
+        }
+
+        /* LED indicator */
+        .led-indicator {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background-color: #4A5568;
+            display: inline-block;
+            margin-right: 10px;
+            transition: all 0.3s ease;
+        }
+
+        .led-indicator.on {
+            background-color: #48BB78;
+            box-shadow: 0 0 10px #48BB78;
+        }
+
+        /* Status message */
+        .status-message {
+            margin-top: 1rem;
+            padding: 0.75rem;
+            border-radius: 8px;
+            text-align: center;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+
+        .status-message.success {
+            background-color: rgba(72, 187, 120, 0.2);
+            color: #48BB78;
+        }
+
+        .status-message.error {
+            background-color: rgba(245, 101, 101, 0.2);
+            color: #F56565;
+        }
+
+        /* Mobile Menu */
+        #mobile-menu {
+            position: fixed;
+            top: 0;
+            right: 0;
+            width: 100%;
+            height: 100vh;
+            background: rgba(16, 24, 32, 0.98);
+            backdrop-filter: blur(10px);
+            z-index: 50;
+            padding: 2rem;
+            display: none;
+            transform: translateX(100%);
+        }
+
+        .mobile-menu-content {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+            margin-top: 4rem;
+        }
+
+        #mobile-menu.active {
+            display: flex;
+            transform: translateX(0);
+        }
+
+        @media (min-width: 768px) {
+            #mobile-menu {
+                display: none;
+            }
+        }
+
+        #mobile-menu a {
+            color: white;
+            text-decoration: none;
+            padding: 1rem;
+            border-radius: 8px;
+            font-size: 1.25rem;
+            font-weight: 500;
+            text-align: center;
+        }
+
+        #mobile-menu a:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .close-btn {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            background: none;
+            border: none;
+            color: white;
+            font-size: 2rem;
+            cursor: pointer;
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 60;
+        }
+
+        /* Hamburger Button */
+        .hamburger-btn {
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            width: 28px;
+            height: 20px;
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            padding: 0;
+            z-index: 60;
+        }
+
+        .hamburger-btn span {
+            width: 100%;
+            height: 2px;
+            background: white;
+            border-radius: 2px;
+            transform-origin: center;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .container-box {
+                width: 95%;
+                margin: 1rem auto;
+                padding: 1.25rem;
+            }
+
+            #mobile-menu {
+                padding-top: 4rem;
+            }
+
+            .mobile-menu-content {
+                width: 100%;
+            }
+
+            .mobile-menu-content a {
+                width: 100%;
+                text-align: center;
+                font-size: 1.25rem;
+                padding: 1rem;
+            }
+        }
+
+        /* Navbar enhancements */
+        .nav-link {
+            position: relative;
+            transition: all 0.3s ease;
+        }
+
+        .nav-link::after {
+            content: '';
+            position: absolute;
+            bottom: -2px;
+            left: 0;
+            width: 0;
+            height: 2px;
+            background: #F56565;
+            transition: width 0.3s ease;
+        }
+
+        .nav-link:hover::after {
+            width: 100%;
+        }
+    </style>
+</head>
+
+<body class="min-h-screen flex flex-col">
+    <nav class="bg-gray-800 text-white p-4 flex justify-between items-center">
+        <!-- Logo Section -->
+        <div class="flex items-center">
+            <span class="text-xl font-bold text-purple-400 mr-2">D Cube</span>
+            <img src="/images/logo.jpg" alt="D Cube Logo" class="w-10 h-10">
+        </div>
+
+        <!-- Navigation Links Section for large screens -->
+        <div class="hidden md:flex items-center space-x-6">
+            <a href="/intro" class="text-white hover:text-red-500">Home</a>
+            <a href="/about" class="text-white hover:text-red-500">About</a>
+            <a href="/contact" class="text-white hover:text-red-500">Contact us</a>
+            <a href="/users/logout" class="text-red-400 hover:text-red-500">Logout</a>
+        </div>
+
+        <!-- Hamburger menu button for small screens -->
+        <div class="block md:hidden">
+            <button id="menuButton" class="hamburger-btn focus:outline-none">
+                <span></span>
+                <span></span>
+                <span></span>
+            </button>
+        </div>
+    </nav>
+
+    <!-- Mobile Menu -->
+    <div id="mobile-menu" class="hidden">
+        <button class="close-btn" id="closeButton">×</button>
+        <div class="mobile-menu-content">
+            <a href="/intro" class="nav-link">Home</a>
+            <a href="/about" class="nav-link">About</a>
+            <a href="/contact" class="nav-link">Contact us</a>
+            <a href="/users/logout" class="nav-link text-red-500">Logout</a>
+        </div>
+    </div>
+
+    <div class="container-box">
+        <h2 class="text-2xl font-bold mb-6 text-center text-white">LED Strip Control</h2>
+
+        <!-- Display flash messages -->
+        <% if (error && error.length > 0) { %>
+            <div class="px-2 absolute top-[4.5rem] left-1/2 -translate-x-1/2 rounded-md bg-blue-800 text-white notification">
+                <span class="inline-block mt-2 mb-1">
+                    <%= error %>
+                </span>
+            </div>
+        <% } %>
+        <% if (success && success.length > 0) { %>
+            <div class="px-2 absolute top-[4.5rem] left-1/2 -translate-x-1/2 rounded-md bg-blue-800 text-white notification">
+                <span class="inline-block mt-2 mb-1">
+                    <%= success %>
+                </span>
+            </div>
+        <% } %>
+
+        <div class="text-center">
+            <div class="mb-8">
+                <h3 class="text-xl text-white mb-4">Control your LED strip</h3>
+                <p class="text-gray-300 mb-6">Control your LED strip and specify how many LEDs to light up</p>
+                
+                <div class="flex items-center justify-center mb-4">
+                    <span class="led-indicator" id="ledIndicator"></span>
+                    <span class="text-white text-lg" id="ledStatus">LED is OFF</span>
+                </div>
+
+                <div class="mb-6">
+                    <label for="numLeds" class="block text-white text-sm font-medium mb-2">Number of LEDs to light (1-60)</label>
+                    <input 
+                        type="number" 
+                        id="numLeds" 
+                        min="1" 
+                        max="60" 
+                        value="60" 
+                        class="w-full p-2 rounded bg-gray-700 text-white border border-gray-600 focus:border-red-500 focus:ring-1 focus:ring-red-500"
+                    >
+                </div>
+                
+                <button id="ledButton" class="led-button">
+                    Turn ON LED Strip
+                </button>
+                
+                <div id="statusMessage" class="status-message" style="display: none;"></div>
+            </div>
+            
+            <div class="mt-8 p-4 bg-gray-800 rounded-lg">
+                <h3 class="text-xl text-white mb-4">LED Strip Information</h3>
+                <p class="text-gray-300 mb-2">Type: WS2811B</p>
+                <p class="text-gray-300 mb-2">Controller: ESP32</p>
+                <p class="text-gray-300">Status: <span id="connectionStatus" class="text-yellow-400">Checking connection...</span></p>
+            </div>
+
+            <!-- Weight Display Section -->
+            <div class="mt-8 p-4 bg-gray-800 rounded-lg">
+                <h3 class="text-xl text-white mb-4">Weight Measurement</h3>
+                <div class="flex flex-col items-center">
+                    <div class="text-4xl font-bold text-green-400 mb-2">
+                        <span id="weightValue">0.0</span>
+                        <span class="text-xl text-gray-400">g</span>
+                    </div>
+                    <button id="tareButton" class="mt-4 px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors">
+                        Tare Scale
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <script>
+        // GSAP Animations
+        const mobileMenu = document.getElementById('mobile-menu');
+        const menuButton = document.getElementById('menuButton');
+        const closeButton = document.getElementById('closeButton');
+        const hamburgerLines = menuButton.querySelectorAll('span');
+        const menuLinks = document.querySelectorAll('.mobile-menu-content a');
+
+        // Menu open handler
+        menuButton.addEventListener('click', () => {
+            mobileMenu.style.display = 'flex';
+            requestAnimationFrame(() => {
+                gsap.to(mobileMenu, {
+                    x: '0%',
+                    duration: 0.5,
+                    ease: 'power3.inOut'
+                });
+
+                // Animate hamburger to X
+                gsap.to(hamburgerLines[0], {
+                    rotate: 45,
+                    y: 9,
+                    duration: 0.3
+                });
+                gsap.to(hamburgerLines[1], {
+                    opacity: 0,
+                    duration: 0.3
+                });
+                gsap.to(hamburgerLines[2], {
+                    rotate: -45,
+                    y: -9,
+                    duration: 0.3
+                });
+
+                // Animate menu links
+                gsap.from(menuLinks, {
+                    x: 50,
+                    opacity: 0,
+                    duration: 0.3,
+                    stagger: 0.1,
+                    ease: 'power2.out'
+                });
+            });
+        });
+
+        // Menu close handler
+        closeButton.addEventListener('click', () => {
+            // Animate menu out
+            gsap.to(mobileMenu, {
+                x: '100%',
+                duration: 0.5,
+                ease: 'power3.inOut',
+                onComplete: () => {
+                    mobileMenu.style.display = 'none';
+                }
+            });
+
+            // Animate X back to hamburger
+            gsap.to(hamburgerLines[0], {
+                rotate: 0,
+                y: 0,
+                duration: 0.3
+            });
+            gsap.to(hamburgerLines[1], {
+                opacity: 1,
+                duration: 0.3
+            });
+            gsap.to(hamburgerLines[2], {
+                rotate: 0,
+                y: 0,
+                duration: 0.3
+            });
+        });
+
+        // Close menu when clicking outside
+        document.addEventListener('click', (e) => {
+            if (mobileMenu.style.display === 'flex' && 
+                !mobileMenu.contains(e.target) && 
+                !menuButton.contains(e.target)) {
+                closeButton.click();
+            }
+        });
+
+        // Close menu when pressing escape key
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && mobileMenu.style.display === 'flex') {
+                closeButton.click();
+            }
+        });
+
+        // Page load animations
+        document.addEventListener('DOMContentLoaded', () => {
+            // Animate in the container
+            gsap.from(".container-box", {
+                opacity: 0,
+                y: 30,
+                duration: 0.8,
+                ease: "power3.out"
+            });
+
+            // Animate in the LED button
+            gsap.from(".led-button", {
+                opacity: 0,
+                y: 20,
+                duration: 0.5,
+                delay: 0.3,
+                ease: "back.out(1.7)"
+            });
+
+            // Animate in the navigation links
+            gsap.from(".nav-link", {
+                opacity: 0,
+                y: -20,
+                duration: 0.5,
+                stagger: 0.1,
+                ease: "power2.out"
+            });
+            
+            // Check initial LED status
+            checkLedStatus();
+        });
+
+        // LED Control
+        const ledButton = document.getElementById('ledButton');
+        const ledIndicator = document.getElementById('ledIndicator');
+        const ledStatus = document.getElementById('ledStatus');
+        const statusMessage = document.getElementById('statusMessage');
+        const connectionStatus = document.getElementById('connectionStatus');
+        const numLedsInput = document.getElementById('numLeds');
+        
+        let isLedOn = false;
+        
+        // Function to check LED status
+        function checkLedStatus() {
+            fetch('/esp32/status')
+                .then(response => response.json())
+                .then(data => {
+                    isLedOn = data.status === 'on';
+                    updateLedUI();
+                    connectionStatus.textContent = 'Connected';
+                    connectionStatus.classList.remove('text-yellow-400');
+                    connectionStatus.classList.add('text-green-400');
+                })
+                .catch(error => {
+                    console.error('Error checking LED status:', error);
+                    connectionStatus.textContent = 'Disconnected';
+                    connectionStatus.classList.remove('text-yellow-400');
+                    connectionStatus.classList.add('text-red-400');
+                });
+        }
+        
+        // Function to update UI based on LED status
+        function updateLedUI() {
+            if (isLedOn) {
+                ledButton.textContent = 'Turn OFF LED Strip';
+                ledButton.classList.add('on');
+                ledIndicator.classList.add('on');
+                ledStatus.textContent = 'LED is ON';
+            } else {
+                ledButton.textContent = 'Turn ON LED Strip';
+                ledButton.classList.remove('on');
+                ledIndicator.classList.remove('on');
+                ledStatus.textContent = 'LED is OFF';
+            }
+        }
+        
+        // Validate number input
+        numLedsInput.addEventListener('input', function() {
+            let value = parseInt(this.value);
+            if (value < 1) this.value = 1;
+            if (value > 60) this.value = 60;
+        });
+        
+        // Toggle LED on button click
+        ledButton.addEventListener('click', function() {
+            const action = isLedOn ? 'off' : 'on';
+            const numLeds = parseInt(numLedsInput.value);
+            
+            // Show loading state
+            ledButton.disabled = true;
+            ledButton.textContent = 'Processing...';
+            
+            // Send request to ESP32
+            fetch('/esp32/led', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ 
+                    action: action,
+                    numLeds: numLeds
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    isLedOn = action === 'on';
+                    updateLedUI();
+                    
+                    // Show success message
+                    statusMessage.textContent = `LED strip turned ${action.toUpperCase()} successfully!`;
+                    statusMessage.className = 'status-message success';
+                    statusMessage.style.display = 'block';
+                    
+                    // Hide message after 3 seconds
+                    setTimeout(() => {
+                        statusMessage.style.display = 'none';
+                    }, 3000);
+                } else {
+                    throw new Error(data.message || 'Failed to control LED');
+                }
+            })
+            .catch(error => {
+                console.error('Error controlling LED:', error);
+                
+                // Show error message
+                statusMessage.textContent = `Error: ${error.message}`;
+                statusMessage.className = 'status-message error';
+                statusMessage.style.display = 'block';
+                
+                // Hide message after 3 seconds
+                setTimeout(() => {
+                    statusMessage.style.display = 'none';
+                }, 3000);
+            })
+            .finally(() => {
+                // Reset button state
+                ledButton.disabled = false;
+                updateLedUI();
+            });
+        });
+
+        // Weight measurement functions
+        function updateWeight() {
+            fetch('/esp32/weight')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        const weightElement = document.getElementById('weightValue');
+                        gsap.to(weightElement, {
+                            innerHTML: parseFloat(data.weight).toFixed(1),
+                            duration: 0.5,
+                            snap: { innerHTML: 0.1 }
+                        });
+                    }
+                })
+                .catch(error => console.error('Error fetching weight:', error));
+        }
+
+        // Tare button handler
+        document.getElementById('tareButton').addEventListener('click', function() {
+            this.disabled = true;
+            this.textContent = 'Taring...';
+            
+            fetch('/esp32/tare', { method: 'POST' })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // Show success message
+                        statusMessage.textContent = 'Scale tared successfully!';
+                        statusMessage.className = 'status-message success';
+                        statusMessage.style.display = 'block';
+                        
+                        // Update weight display
+                        updateWeight();
+                    } else {
+                        throw new Error('Failed to tare scale');
+                    }
+                })
+                .catch(error => {
+                    // Show error message
+                    statusMessage.textContent = `Error: ${error.message}`;
+                    statusMessage.className = 'status-message error';
+                    statusMessage.style.display = 'block';
+                })
+                .finally(() => {
+                    // Reset button state
+                    this.disabled = false;
+                    this.textContent = 'Tare Scale';
+                    
+                    // Hide message after 3 seconds
+                    setTimeout(() => {
+                        statusMessage.style.display = 'none';
+                    }, 3000);
+                });
+        });
+
+        // Update weight reading every second
+        setInterval(updateWeight, 1000);
+
+        // Initial weight reading
+        updateWeight();
+    </script>
+</body>
+
+</html>

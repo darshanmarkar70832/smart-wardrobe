@@ -456,21 +456,34 @@
             // Get form data
             const formData = {};
             const fields = ['gender', 'subcategory', 'size', 'color', 'fabric', 'occasion', 'weather'];
+            let hasError = false;
             
+            // Handle all dropdown fields
             fields.forEach(field => {
                 const select = document.getElementById(field);
                 const customInput = document.getElementById('custom_' + field);
-                formData[field] = select.value === 'Other' ? customInput.value : select.value;
+                
+                if (select.value === 'Other') {
+                    // Validate custom input
+                    if (!customInput.value || customInput.value.trim() === '') {
+                        alert(`Please enter a custom ${field}`);
+                        customInput.focus();
+                        hasError = true;
+                        return;
+                    }
+                    // Use the custom input value
+                    formData[field] = customInput.value.trim();
+                } else {
+                    formData[field] = select.value;
+                }
             });
             
-            formData.image = document.getElementById('imagePath').value;
-
-            // Validate all required fields
-            const missingFields = fields.filter(field => !formData[field]);
-            if (missingFields.length > 0) {
-                alert('Please fill in all required fields: ' + missingFields.join(', '));
+            if (hasError) {
                 return;
             }
+
+            // Add image path
+            formData.image = document.getElementById('imagePath').value;
 
             // Validate image
             if (!formData.image) {
@@ -492,17 +505,10 @@
                     throw new Error(errorData.error || 'Failed to save clothing item');
                 }
 
-                const data = await response.json();
-                
-                if (data.success) {
-                    alert('Clothing item successfully added!');
-                    window.location.href = '/clothes/successpage';
-                } else {
-                    throw new Error(data.error || 'Failed to save clothing item');
-                }
+                // Handle successful submission
+                window.location.href = '/clothes/successpage';
             } catch (error) {
-                console.error('Error:', error);
-                alert(error.message || 'An error occurred. Please try again.');
+                alert(error.message);
             }
         });
 

@@ -6,12 +6,11 @@ const userClothSchema = mongoose.Schema({
         ref: 'User', // Reference to the User model
         required: true,
     },
-   
-   
     subcategory: {
         type: String,
         required: true,
         trim: true,
+        // Allow any string value for subcategory to support custom entries
     },
     color: {
         type: String,
@@ -21,26 +20,27 @@ const userClothSchema = mongoose.Schema({
     fabric: {
         type: String,
         required: true,
-        enum: ['Cotton', 'Wool', 'Polyester', 'Silk', 'Denim', 'Linen', 'Other'], // Updated fabric types
+        trim: true
     },
     occasion: {
         type: String,
         required: true,
-        enum: ['Casual', 'Formal', 'Sports', 'Party', 'Business', 'Other'], // Updated occasions
+        trim: true
     },
     weather: {
         type: String,
         required: true,
-        enum: ['Sunny', 'Rainy', 'Cold', 'Hot', 'All Weather', 'Other'], // Updated weather types
+        trim: true
     },
     size: {
         type: String,
         required: true,
+        trim: true
     },
     gender: {
         type: String,
         required: true,
-        enum: ['Male', 'Female', 'Unisex', 'Other'], // Added gender options
+        trim: true
     },
     image: {
         type: String, // Store the image URL after upload to Firebase

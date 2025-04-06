@@ -575,24 +575,39 @@
         });
 
         const subcategoryOptions = {
-            Male: ['T-Shirt', 'Shirt', 'Jeans', 'Jacket', 'Short'],
-            Female: ['Dress', 'Skirt', 'Top', 'Jeans'],
-            Unisex: ['T-Shirt', 'Shirt', 'Jeans', 'Jacket']
+            Male: ['T-Shirt', 'Shirt', 'Jeans', 'Jacket', 'Short', 'Suit'],
+            Female: ['Dress', 'Skirt', 'Top', 'Jeans', 'Suit'],
+            Unisex: ['T-Shirt', 'Shirt', 'Jeans', 'Jacket', 'Suit']
         };
 
         document.getElementById('gender').addEventListener('change', function () {
             const gender = this.value;
             const subcategorySelect = document.getElementById('subcategory');
-            subcategorySelect.innerHTML = '<option value="">Select Subcategory</option>'; // Reset subcategory options
+            
+            // Start with the default "Select Subcategory" option
+            subcategorySelect.innerHTML = '<option value="">Select Subcategory</option>';
 
-            if (gender) {
+            // Add gender-specific options if a gender is selected
+            if (gender && subcategoryOptions[gender]) {
                 subcategoryOptions[gender].forEach(function (subcategory) {
                     const option = document.createElement('option');
-                   
+                    option.value = subcategory;
                     option.textContent = subcategory;
                     subcategorySelect.appendChild(option);
                 });
             }
+
+            // Always add the "Other" option at the end
+            const otherOption = document.createElement('option');
+            otherOption.value = 'Other';
+            otherOption.textContent = 'Other';
+            subcategorySelect.appendChild(otherOption);
+
+            // Reset the custom input field
+            const customInput = document.getElementById('custom_subcategory');
+            customInput.style.display = 'none';
+            customInput.required = false;
+            subcategorySelect.required = true;
         });
 
         document.getElementById('image').addEventListener('change', function (event) {
@@ -630,16 +645,65 @@
 
         // Handle form submission
         document.getElementById('addClothesForm').addEventListener('submit', function(e) {
-            const selects = ['gender', 'subcategory', 'size', 'color', 'fabric', 'occasion', 'weather'];
+            e.preventDefault(); // Prevent default form submission
             
-            selects.forEach(field => {
+            const fields = ['gender', 'subcategory', 'size', 'color', 'fabric', 'occasion', 'weather'];
+            let hasError = false;
+            const formData = new FormData(this);
+
+            // Handle all dropdown fields
+            fields.forEach(field => {
                 const select = document.getElementById(field);
                 const customInput = document.getElementById('custom_' + field);
                 
-                if (select.value === 'Other' && customInput) {
-                    select.value = customInput.value;
+                if (select.value === 'Other') {
+                    // Validate custom input
+                    if (!customInput.value || customInput.value.trim() === '') {
+                        alert(`Please enter a custom ${field}`);
+                        customInput.focus();
+                        hasError = true;
+                        return;
+                    }
+                    // Set the form data value to the custom input value
+                    formData.set(field, customInput.value.trim());
                 }
             });
+
+            if (hasError) {
+                return;
+            }
+
+            // Create a new form with the updated formData
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = '/clothes/add-clothes';
+            form.enctype = 'multipart/form-data';
+
+            // Append all formData to the new form
+            for (let [key, value] of formData.entries()) {
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = key;
+                input.value = value;
+                form.appendChild(input);
+            }
+
+            // Append the image file
+            const imageInput = document.getElementById('image');
+            if (imageInput.files[0]) {
+                const fileInput = document.createElement('input');
+                fileInput.type = 'file';
+                fileInput.name = 'image';
+                fileInput.style.display = 'none';
+                const dataTransfer = new DataTransfer();
+                dataTransfer.items.add(imageInput.files[0]);
+                fileInput.files = dataTransfer.files;
+                form.appendChild(fileInput);
+            }
+
+            // Append form to body and submit
+            document.body.appendChild(form);
+            form.submit();
         });
     </script>
 </body>
