@@ -8,7 +8,7 @@ let lastUpdateTimestamp = 0;
 const CONNECTION_TIMEOUT = 5000; // 5 seconds timeout
 
 // ESP32 configuration
-const ESP32_IP = process.env.ESP32_IP || '192.168.0.110'; // Updated IP address
+const ESP32_IP = process.env.ESP32_IP || '192.168.0.110';
 const ESP32_PORT = process.env.ESP32_PORT || '80';
 
 // Store the last received weight value
@@ -17,7 +17,9 @@ let currentWeight = 0;
 // Function to check if ESP32 is connected
 async function checkESP32Connection() {
     try {
-        const response = await fetch(`http://${ESP32_IP}:${ESP32_PORT}/status`);
+        const response = await fetch(`http://${ESP32_IP}:${ESP32_PORT}/status`, {
+            timeout: 2000 // 2 second timeout
+        });
         return response.ok;
     } catch (error) {
         console.error('Error checking ESP32 connection:', error);
@@ -26,14 +28,22 @@ async function checkESP32Connection() {
 }
 
 // ESP32 monitor page
-router.get('/monitor', isLoggedIn, (req, res) => {
+router.get('/monitor', isLoggedIn, async (req, res) => {
+    const isConnected = await checkESP32Connection();
+    const defaultData = {
+        test: 'No data available',
+        counter: 'N/A',
+        wifi_strength: 'N/A',
+        lastUpdate: 'Never',
+        temperature: 'N/A',
+        humidity: 'N/A'
+    };
+
     res.render('esp32-monitor', { 
-        sensorData: checkESP32Connection() ? lastData : {
-            test: 'No data available',
-            counter: 'N/A',
-            wifi_strength: 'N/A',
-            lastUpdate: 'Never'
-        }
+        sensorData: isConnected ? lastData || defaultData : defaultData,
+        isConnected: isConnected,
+        esp32IP: ESP32_IP,
+        esp32Port: ESP32_PORT
     });
 });
 
@@ -50,22 +60,33 @@ router.post('/data', (req, res) => {
 
 // Get last ESP32 data
 router.get('/data', (req, res) => {
-    if (!checkESP32Connection()) {
+    const timeSinceLastUpdate = Date.now() - lastUpdateTimestamp;
+    const isConnected = timeSinceLastUpdate < CONNECTION_TIMEOUT;
+
+    if (!isConnected) {
         return res.status(503).json({
             error: 'ESP32 disconnected',
             lastUpdateTimestamp: lastUpdateTimestamp
         });
     }
-    res.json(lastData);
+
+    res.json(lastData || {
+        test: 'No data available',
+        counter: 'N/A',
+        wifi_strength: 'N/A',
+        lastUpdate: 'Never'
+    });
 });
 
-// LED status endpoint
+// LED control endpoints
 router.get('/status', async (req, res) => {
     try {
-        const response = await fetch(`http://${ESP32_IP}:${ESP32_PORT}/status`);
-        res.json(response.data);
+        const response = await fetch(`http://${ESP32_IP}:${ESP32_PORT}/status`, {
+            timeout: 2000
+        });
+        res.json(await response.json());
     } catch (error) {
-        console.error('Error getting LED status:', error.message);
+        console.error('Error getting LED status:', error);
         res.status(500).json({ 
             success: false, 
             message: 'Failed to get LED status',
@@ -74,7 +95,6 @@ router.get('/status', async (req, res) => {
     }
 });
 
-// LED control endpoint
 router.post('/led', async (req, res) => {
     try {
         const response = await fetch(`http://${ESP32_IP}:${ESP32_PORT}/led`, {
@@ -82,15 +102,16 @@ router.post('/led', async (req, res) => {
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify(req.body)
+            body: JSON.stringify(req.body),
+            timeout: 2000
         });
-        const data = await response.json();
-        res.json(data);
+        res.json(await response.json());
     } catch (error) {
         console.error('Error controlling LED:', error);
         res.status(500).json({
             success: false,
-            message: 'Failed to control LED'
+            message: 'Failed to control LED',
+            error: error.message
         });
     }
 });

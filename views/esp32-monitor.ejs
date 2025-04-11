@@ -49,20 +49,26 @@
         <!-- Connection Status -->
         <div class="flex items-center justify-center mb-6">
             <div class="card p-4 rounded-lg shadow-lg inline-flex items-center">
-                <span id="statusIndicator" class="status-indicator status-offline"></span>
-                <span id="connectionStatus" class="text-gray-300">Checking connection...</span>
+                <span id="statusIndicator" class="status-indicator <%= isConnected ? 'status-online' : 'status-offline' %>"></span>
+                <span id="connectionStatus" class="text-gray-300"><%= isConnected ? 'ESP32 Connected' : 'ESP32 Disconnected' %></span>
             </div>
+        </div>
+
+        <!-- ESP32 Info -->
+        <div class="text-center mb-6">
+            <p class="text-gray-700">ESP32 IP: <%= esp32IP %>:<%= esp32Port %></p>
         </div>
 
         <h1 class="text-3xl font-bold text-gray-800 mb-8 text-center">ESP32 Sensor Monitor</h1>
 
         <!-- Error Alert -->
-        <div id="errorAlert" class="hidden bg-red-500 text-white p-4 rounded-lg mb-6 text-center">
+        <div id="errorAlert" class="<%= isConnected ? 'hidden' : '' %> bg-red-500 text-white p-4 rounded-lg mb-6 text-center">
             ESP32 is disconnected. Please check:
             <ul class="list-disc list-inside mt-2 text-left">
                 <li>ESP32 is powered on</li>
                 <li>ESP32 is connected to WiFi</li>
                 <li>Your computer's IP address is correct in ESP32 code</li>
+                <li>ESP32 IP address is correct: <%= esp32IP %>:<%= esp32Port %></li>
             </ul>
         </div>
 
@@ -135,10 +141,10 @@
                     return response.json();
                 })
                 .then(data => {
-                    document.getElementById('testData').textContent = data.test;
-                    document.getElementById('counter').textContent = data.counter;
-                    document.getElementById('wifiStrength').textContent = data.wifi_strength + ' dBm';
-                    document.getElementById('lastUpdate').textContent = data.lastUpdate;
+                    document.getElementById('testData').textContent = data.test || 'No data available';
+                    document.getElementById('counter').textContent = data.counter || 'N/A';
+                    document.getElementById('wifiStrength').textContent = data.wifi_strength ? `${data.wifi_strength} dBm` : 'N/A';
+                    document.getElementById('lastUpdate').textContent = data.lastUpdate || 'Never';
 
                     // Update connection status
                     lastUpdateTime = Date.now();
@@ -147,7 +153,7 @@
                     // Add to debug log
                     const debugLog = document.getElementById('debugLog');
                     const logEntry = document.createElement('div');
-                    logEntry.textContent = `[${new Date().toLocaleTimeString()}] Data updated: Counter=${data.counter}, WiFi=${data.wifi_strength}dBm`;
+                    logEntry.textContent = `[${new Date().toLocaleTimeString()}] Data updated: Counter=${data.counter || 'N/A'}, WiFi=${data.wifi_strength || 'N/A'}dBm`;
                     debugLog.insertBefore(logEntry, debugLog.firstChild);
                 })
                 .catch(error => {
@@ -163,7 +169,7 @@
                     // Add to debug log
                     const debugLog = document.getElementById('debugLog');
                     const logEntry = document.createElement('div');
-                    logEntry.textContent = `[${new Date().toLocaleTimeString()}] Error: ESP32 disconnected`;
+                    logEntry.textContent = `[${new Date().toLocaleTimeString()}] Error: ${error.message}`;
                     logEntry.style.color = '#EF4444'; // Red color for error
                     debugLog.insertBefore(logEntry, debugLog.firstChild);
                 });
