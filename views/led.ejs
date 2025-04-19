@@ -227,6 +227,32 @@
         .nav-link:hover::after {
             width: 100%;
         }
+
+        .card {
+            background-color: #101820FF;
+            transition: transform 0.2s;
+        }
+        .card:hover {
+            transform: scale(1.02);
+        }
+        input[type="range"] {
+            width: 100%;
+            margin: 10px 0;
+        }
+        input[type="number"] {
+            background: #2D3748;
+            color: white;
+            border: 1px solid #4A5568;
+            border-radius: 0.375rem;
+            padding: 0.5rem;
+            width: 100%;
+            margin-bottom: 1rem;
+        }
+        input[type="number"]:focus {
+            outline: none;
+            border-color: #F56565;
+            box-shadow: 0 0 0 3px rgba(245, 101, 101, 0.2);
+        }
     </style>
 </head>
 
@@ -297,20 +323,50 @@
                 </div>
 
                 <div class="mb-6">
-                    <label for="numLeds" class="block text-white text-sm font-medium mb-2">Number of LEDs to light (1-60)</label>
+                    <label for="numLeds" class="block text-white text-sm font-medium mb-2">Number of LEDs to light (0-60)</label>
                     <input 
                         type="number" 
                         id="numLeds" 
-                        min="1" 
+                        min="0" 
                         max="60" 
-                        value="60" 
+                        value="0" 
+                        class="w-full p-2 rounded bg-gray-700 text-white border border-gray-600 focus:border-red-500 focus:ring-1 focus:ring-red-500"
+                    >
+                </div>
+
+                <div class="mb-6">
+                    <label for="minValue" class="block text-white text-sm font-medium mb-2">Minimum Value (0-1000)</label>
+                    <input 
+                        type="number" 
+                        id="minValue" 
+                        min="0" 
+                        max="1000" 
+                        value="0" 
+                        class="w-full p-2 rounded bg-gray-700 text-white border border-gray-600 focus:border-red-500 focus:ring-1 focus:ring-red-500"
+                    >
+                </div>
+
+                <div class="mb-6">
+                    <label for="maxValue" class="block text-white text-sm font-medium mb-2">Maximum Value (0-1000)</label>
+                    <input 
+                        type="number" 
+                        id="maxValue" 
+                        min="0" 
+                        max="1000" 
+                        value="100" 
                         class="w-full p-2 rounded bg-gray-700 text-white border border-gray-600 focus:border-red-500 focus:ring-1 focus:ring-red-500"
                     >
                 </div>
                 
-                <button id="ledButton" class="led-button">
-                    Turn ON LED Strip
-                </button>
+                <div class="flex flex-col gap-4">
+                    <button id="setValuesButton" class="w-full p-4 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors">
+                        Apply Settings
+                    </button>
+                    
+                    <button id="ledButton" class="led-button">
+                        Turn ON LED Strip
+                    </button>
+                </div>
                 
                 <div id="statusMessage" class="status-message" style="display: none;"></div>
             </div>
@@ -462,12 +518,15 @@
         });
 
         // LED Control
+        const setValuesButton = document.getElementById('setValuesButton');
         const ledButton = document.getElementById('ledButton');
         const ledIndicator = document.getElementById('ledIndicator');
         const ledStatus = document.getElementById('ledStatus');
         const statusMessage = document.getElementById('statusMessage');
         const connectionStatus = document.getElementById('connectionStatus');
         const numLedsInput = document.getElementById('numLeds');
+        const minValueInput = document.getElementById('minValue');
+        const maxValueInput = document.getElementById('maxValue');
         
         let isLedOn = false;
         
@@ -508,11 +567,71 @@
         // Validate number input
         numLedsInput.addEventListener('input', function() {
             let value = parseInt(this.value);
-            if (value < 1) this.value = 1;
+            if (value < 0) this.value = 0;
             if (value > 60) this.value = 60;
         });
         
-        // Toggle LED on button click
+        // Apply Settings button handler
+        setValuesButton.addEventListener('click', function() {
+            const minValue = parseInt(minValueInput.value);
+            const maxValue = parseInt(maxValueInput.value);
+            const numLeds = parseInt(numLedsInput.value);
+            
+            // Validate min/max values
+            if (minValue >= maxValue) {
+                statusMessage.textContent = 'Error: Minimum value must be less than maximum value';
+                statusMessage.className = 'status-message error';
+                statusMessage.style.display = 'block';
+                setTimeout(() => {
+                    statusMessage.style.display = 'none';
+                }, 3000);
+                return;
+            }
+            
+            // Show loading state
+            this.disabled = true;
+            this.textContent = 'Applying...';
+            
+            // Send request to ESP32
+            fetch('/esp32/set-values', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ 
+                    min: minValue,
+                    max: maxValue,
+                    leds: numLeds
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Show success message
+                    statusMessage.textContent = `Values set successfully! Min: ${minValue}, Max: ${maxValue}, LEDs: ${numLeds}`;
+                    statusMessage.className = 'status-message success';
+                    statusMessage.style.display = 'block';
+                } else {
+                    throw new Error(data.message || 'Failed to set values');
+                }
+            })
+            .catch(error => {
+                console.error('Error setting values:', error);
+                statusMessage.textContent = `Error: ${error.message}`;
+                statusMessage.className = 'status-message error';
+                statusMessage.style.display = 'block';
+            })
+            .finally(() => {
+                // Reset button state
+                this.disabled = false;
+                this.textContent = 'Apply Settings';
+                setTimeout(() => {
+                    statusMessage.style.display = 'none';
+                }, 3000);
+            });
+        });
+
+        // LED Toggle button handler
         ledButton.addEventListener('click', function() {
             const action = isLedOn ? 'off' : 'on';
             const numLeds = parseInt(numLedsInput.value);
@@ -542,32 +661,23 @@
                     statusMessage.textContent = `LED strip turned ${action.toUpperCase()} successfully!`;
                     statusMessage.className = 'status-message success';
                     statusMessage.style.display = 'block';
-                    
-                    // Hide message after 3 seconds
-                    setTimeout(() => {
-                        statusMessage.style.display = 'none';
-                    }, 3000);
                 } else {
                     throw new Error(data.message || 'Failed to control LED');
                 }
             })
             .catch(error => {
                 console.error('Error controlling LED:', error);
-                
-                // Show error message
                 statusMessage.textContent = `Error: ${error.message}`;
                 statusMessage.className = 'status-message error';
                 statusMessage.style.display = 'block';
-                
-                // Hide message after 3 seconds
-                setTimeout(() => {
-                    statusMessage.style.display = 'none';
-                }, 3000);
             })
             .finally(() => {
                 // Reset button state
                 ledButton.disabled = false;
                 updateLedUI();
+                setTimeout(() => {
+                    statusMessage.style.display = 'none';
+                }, 3000);
             });
         });
 

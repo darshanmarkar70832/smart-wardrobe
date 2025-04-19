@@ -441,6 +441,27 @@
                 <img id="preview" class="w-full mt-4 rounded" />
             </div>
 
+            <div class="form-group">
+                <label class="form-label">Weight (grams)</label>
+                <div class="weight-display bg-gray-700 p-4 rounded-lg text-center">
+                    <div class="text-2xl font-bold text-white" id="weightValue">0</div>
+                    <div class="text-sm text-gray-400 mt-1">Current Item Weight</div>
+                    <div class="text-sm text-gray-400 mt-2">Total Weight: <span id="totalWeight">0</span>g</div>
+                    <div class="mt-3 flex items-center justify-center space-x-2">
+                        <input type="text" id="weightInput" class="px-3 py-2 rounded bg-gray-600 text-white w-32" placeholder="Enter weight" />
+                        <button type="button" onclick="requestWeight()" class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">Request Weight</button>
+                        <button type="button" onclick="resetWeight()" class="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600">Reset Weight</button>
+                    </div>
+                    <div class="mt-4">
+                        <h4 class="text-white font-semibold mb-2">Weight History</h4>
+                        <div id="weightHistory" class="text-sm text-gray-300">
+                            <!-- Weight history will be displayed here -->
+                        </div>
+                    </div>
+                </div>
+                <input type="hidden" id="weight" name="weight" value="0" />
+            </div>
+
             <button type="submit" class="submit-btn">Add to Wardrobe</button>
         </form>
     </div>
@@ -643,68 +664,134 @@
             }
         });
 
-        // Handle form submission
-        document.getElementById('addClothesForm').addEventListener('submit', function(e) {
-            e.preventDefault(); // Prevent default form submission
-            
-            const fields = ['gender', 'subcategory', 'size', 'color', 'fabric', 'occasion', 'weather'];
-            let hasError = false;
-            const formData = new FormData(this);
-
-            // Handle all dropdown fields
-            fields.forEach(field => {
-                const select = document.getElementById(field);
-                const customInput = document.getElementById('custom_' + field);
+        // Start weight updates when page loads
+        document.addEventListener('DOMContentLoaded', async () => {
+            try {
+                // Get initial weight state
+                const response = await fetch('/esp32/weight-state');
+                const data = await response.json();
                 
-                if (select.value === 'Other') {
-                    // Validate custom input
-                    if (!customInput.value || customInput.value.trim() === '') {
-                        alert(`Please enter a custom ${field}`);
-                        customInput.focus();
-                        hasError = true;
-                        return;
+                if (data.success) {
+                    // Update displays with stored values, using null checks
+                    document.getElementById('weightValue').textContent = '0.0';
+                    document.getElementById('totalWeight').textContent = 
+                        (data.totalWeight || 0).toFixed(1);
+                    document.getElementById('weightInput').value = '';
+                    
+                    // Update weight history display
+                    const historyDiv = document.getElementById('weightHistory');
+                    historyDiv.innerHTML = '';
+                    
+                    // Only try to display history if it exists
+                    if (Array.isArray(data.weightHistory) && data.weightHistory.length > 0) {
+                        data.weightHistory.forEach((weight, index) => {
+                            if (typeof weight === 'number') {
+                                const item = document.createElement('div');
+                                item.className = 'flex justify-between items-center py-1 px-2 bg-gray-600 rounded mb-1';
+                                item.innerHTML = `
+                                    <span>Item ${index + 1}:</span>
+                                    <span>${weight.toFixed(1)}g</span>
+                                `;
+                                historyDiv.appendChild(item);
+                            }
+                        });
                     }
-                    // Set the form data value to the custom input value
-                    formData.set(field, customInput.value.trim());
+                } else {
+                    console.warn('Failed to load weight state:', data.message);
+                    // Set default values if loading fails
+                    document.getElementById('weightValue').textContent = '0.0';
+                    document.getElementById('totalWeight').textContent = '0.0';
+                    document.getElementById('weightInput').value = '';
                 }
-            });
-
-            if (hasError) {
-                return;
+            } catch (error) {
+                console.error('Error loading weight state:', error);
+                // Set default values on error
+                document.getElementById('weightValue').textContent = '0.0';
+                document.getElementById('totalWeight').textContent = '0.0';
+                document.getElementById('weightInput').value = '';
             }
-
-            // Create a new form with the updated formData
-            const form = document.createElement('form');
-            form.method = 'POST';
-            form.action = '/clothes/add-clothes';
-            form.enctype = 'multipart/form-data';
-
-            // Append all formData to the new form
-            for (let [key, value] of formData.entries()) {
-                const input = document.createElement('input');
-                input.type = 'hidden';
-                input.name = key;
-                input.value = value;
-                form.appendChild(input);
-            }
-
-            // Append the image file
-            const imageInput = document.getElementById('image');
-            if (imageInput.files[0]) {
-                const fileInput = document.createElement('input');
-                fileInput.type = 'file';
-                fileInput.name = 'image';
-                fileInput.style.display = 'none';
-                const dataTransfer = new DataTransfer();
-                dataTransfer.items.add(imageInput.files[0]);
-                fileInput.files = dataTransfer.files;
-                form.appendChild(fileInput);
-            }
-
-            // Append form to body and submit
-            document.body.appendChild(form);
-            form.submit();
         });
+
+        // Update the requestWeight function with better error handling
+        async function requestWeight() {
+            try {
+                const response = await fetch('/esp32/measure-weight', {
+                    method: 'POST'
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                if (data.success) {
+                    // Update the weight input field with the new item's weight
+                    const weight = data.weight || 0;
+                    const totalWeight = data.totalWeight || 0;
+                    
+                    document.getElementById('weightInput').value = weight.toFixed(1);
+                    document.getElementById('weightValue').textContent = weight.toFixed(1);
+                    document.getElementById('totalWeight').textContent = totalWeight.toFixed(1);
+                    document.getElementById('weight').value = weight.toFixed(1);
+                    
+                    // Update weight history display
+                    const historyDiv = document.getElementById('weightHistory');
+                    historyDiv.innerHTML = '';
+                    
+                    if (Array.isArray(data.weightHistory)) {
+                        data.weightHistory.forEach((weight, index) => {
+                            if (typeof weight === 'number') {
+                                const item = document.createElement('div');
+                                item.className = 'flex justify-between items-center py-1 px-2 bg-gray-600 rounded mb-1';
+                                item.innerHTML = `
+                                    <span>Item ${index + 1}:</span>
+                                    <span>${weight.toFixed(1)}g</span>
+                                `;
+                                historyDiv.appendChild(item);
+                            }
+                        });
+                    }
+                    
+                    console.log('Weight received:', weight);
+                    console.log('Total weight:', totalWeight);
+                    console.log('Weight history:', data.weightHistory);
+                } else {
+                    console.error('Failed to get weight:', data.message);
+                    alert('Failed to get weight measurement: ' + (data.message || 'Unknown error'));
+                }
+            } catch (error) {
+                console.error('Error requesting weight:', error);
+                alert('Failed to get weight measurement. Please try again.');
+            }
+        }
+
+        // Update the resetWeight function
+        async function resetWeight() {
+            try {
+                const response = await fetch('/esp32/reset-weight', {
+                    method: 'POST'
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                if (data.success) {
+                    // Reset all displays
+                    document.getElementById('weightValue').textContent = '0.0';
+                    document.getElementById('totalWeight').textContent = '0.0';
+                    document.getElementById('weightInput').value = '';
+                    document.getElementById('weight').value = '0';
+                    document.getElementById('weightHistory').innerHTML = '';
+                    document.querySelector('.weight-display .text-sm').textContent = 
+                        'Place first item on scale';
+                }
+            } catch (error) {
+                console.error('Error resetting weight:', error);
+                alert('Failed to reset weight measurement');
+            }
+        }
     </script>
 </body>
 

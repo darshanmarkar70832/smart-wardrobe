@@ -56,7 +56,7 @@ router.post('/add-clothes', isLoggedIn, async (req, res) => {
     try {
         // Check if it's a JSON request from camera
         if (req.headers['content-type']?.includes('application/json')) {
-            const { gender, subcategory, size, color, fabric, occasion, weather, image } = req.body;
+            const { gender, subcategory, size, color, fabric, occasion, weather, image, weight } = req.body;
             
             // Validate required fields
             if (!gender || !subcategory || !size || !color || !fabric || !occasion || !weather) {
@@ -85,7 +85,8 @@ router.post('/add-clothes', isLoggedIn, async (req, res) => {
                 fabric,
                 occasion,
                 weather,
-                image: image
+                image: image,
+                weight: weight || 0
             });
 
             await newCloth.save();
@@ -110,7 +111,7 @@ router.post('/add-clothes', isLoggedIn, async (req, res) => {
             const validationError = handleValidationErrors(req, res);
             if (validationError) return validationError;
 
-            const { gender, size, subcategory, color, fabric, occasion, weather } = req.body;
+            const { gender, size, subcategory, color, fabric, occasion, weather, weight } = req.body;
 
             try {
                 const filename = `${Date.now()}_${req.file.originalname}`;
@@ -142,6 +143,7 @@ router.post('/add-clothes', isLoggedIn, async (req, res) => {
                         occasion,
                         weather,
                         image: imageUrl,
+                        weight: weight || 0
                     });
 
                     await newCloth.save();

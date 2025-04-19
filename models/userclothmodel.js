@@ -46,6 +46,11 @@ const userClothSchema = mongoose.Schema({
         type: String, // Store the image URL after upload to Firebase
         required: true,
     },
+    weight: {
+        type: Number,
+        required: true,
+        default: 0
+    }
 }, {
     timestamps: true, // Automatically create createdAt and updatedAt fields
 });
