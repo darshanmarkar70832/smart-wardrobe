@@ -352,7 +352,8 @@
                              data-color="<%= cloth.color %>"
                              data-fabric="<%= cloth.fabric %>"
                              data-occasion="<%= cloth.occasion %>"
-                             data-weather="<%= cloth.weather %>">
+                             data-weather="<%= cloth.weather %>"
+                             data-created-at="<%= cloth.createdAt %>">
                             <img src="<%= cloth.image %>" alt="<%= cloth.subcategory %>" />
                             <h3 class="text-lg font-semibold mt-2"><%= cloth.subcategory %></h3>
                             <p class="text-sm">Gender: <%= cloth.gender %></p>
@@ -362,6 +363,9 @@
                             <p class="text-sm">Occasion: <%= cloth.occasion %></p>
                             <p class="text-sm">Weather: <%= cloth.weather %></p>
                             <p class="text-sm">Weight: <%= cloth.weight %> grams</p>
+                            <div class="unused-warning hidden text-red-500 text-sm font-semibold mt-2 p-2 bg-red-100 rounded">
+                                Cloth unused for too long
+                            </div>
                         </div>
                     <% }); %>
                 </div>
@@ -370,6 +374,32 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
 
     <script>
+        // Function to check if a cloth has been unused for more than 2 hours
+        function checkUnusedClothes() {
+            const clothingItems = document.querySelectorAll('.clothing-item');
+            const twoHoursInMs = 2000 * 60 * 60 * 1000; // 2 hours in milliseconds
+            const currentTime = new Date().getTime();
+
+            clothingItems.forEach(item => {
+                const createdAt = new Date(item.dataset.createdAt).getTime();
+                const timeDiff = currentTime - createdAt;
+                const warningDiv = item.querySelector('.unused-warning');
+
+                if (timeDiff > twoHoursInMs) {
+                    warningDiv.classList.remove('hidden');
+                } else {
+                    warningDiv.classList.add('hidden');
+                }
+            });
+        }
+
+        // Check unused clothes when page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            checkUnusedClothes();
+            // Check every minute
+            setInterval(checkUnusedClothes, 60000);
+        });
+
         const form = document.getElementById('gemini-form');
         const recommendationSection = document.getElementById('recommendation-section');
         const descriptionText = document.getElementById('description-text');
